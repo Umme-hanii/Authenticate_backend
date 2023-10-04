@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs'
 import { StatusCodes } from 'http-status-codes'
 import Role from '../models/Role.js'
 import User from '../models/User.js'
@@ -7,15 +6,13 @@ import { createSuccess } from '../utils/success.js'
 
 export const registerUser = async (req, res, next) => {
   try {
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(req.body.password, salt)
     const role = await Role.findOne({ role: 'User' })
     const user = new User({
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       userName: req.body.userName,
       email: req.body.email,
-      password: hashedPassword,
+      password: req.body.password,
       roles: role,
     })
     await user.save()
@@ -39,8 +36,8 @@ export const login = async (req, res, next) => {
     if (!user) {
       return next(createError(StatusCodes.NOT_FOUND, 'User not found'))
     }
-    const isMatch = await bcrypt.compare(password, user.password)
-    if (!isMatch) {
+    const isPasswordCorrect = await user.comparePassword(password)
+    if (!isPasswordCorrect) {
       return next(createError(StatusCodes.NOT_FOUND, 'Incorrect Password'))
     }
     return next(createSuccess(StatusCodes.OK, 'You are logged in !!!', user))
