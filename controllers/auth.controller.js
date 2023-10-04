@@ -28,7 +28,6 @@ export const registerUser = async (req, res, next) => {
 export const registerAdmin = async (req, res, next) => {
   try {
     const roles = await Role.find()
-    console.log(roles)
     const user = new User({
       firstName: req.body.firstName,
       lastName: req.body.lastName,
@@ -66,7 +65,7 @@ export const login = async (req, res, next) => {
     }
 
     const token = user.createJwtToken()
-    res.cookie('access_tokein', token)
+    res.cookie('access_token', token, { httpOnly: true })
     return next(createSuccess(StatusCodes.OK, 'You are logged in !!!', user))
   } catch (error) {
     return next(

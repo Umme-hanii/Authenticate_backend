@@ -60,7 +60,7 @@ UserSchema.methods.comparePassword = async function (password) {
 
 UserSchema.methods.createJwtToken = function () {
   return Jwt.sign(
-    { id: this._id, email: this.email },
+    { id: this._id, email: this.email, isAdmin: this.isAdmin },
     process.env.SECRET_TOKEN,
     { expiresIn: process.env.JWT_LIFETIME }
   )
