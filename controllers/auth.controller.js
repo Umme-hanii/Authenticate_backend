@@ -25,6 +25,29 @@ export const registerUser = async (req, res, next) => {
   }
 }
 
+export const registerAdmin = async (req, res, next) => {
+  try {
+    const roles = await Role.find()
+    console.log(roles)
+    const user = new User({
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      userName: req.body.userName,
+      email: req.body.email,
+      password: req.body.password,
+      isAdmin: true,
+      roles: roles,
+    })
+
+    await user.save()
+    return next(
+      createSuccess(StatusCodes.OK, 'Admin is successfully registered', user)
+    )
+  } catch (error) {
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
+  }
+}
+
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body
