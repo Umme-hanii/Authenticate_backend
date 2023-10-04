@@ -15,6 +15,7 @@ export const registerUser = async (req, res, next) => {
       password: req.body.password,
       roles: role,
     })
+
     await user.save()
     return next(
       createSuccess(StatusCodes.OK, 'User is successfully registered', user)
@@ -40,6 +41,9 @@ export const login = async (req, res, next) => {
     if (!isPasswordCorrect) {
       return next(createError(StatusCodes.NOT_FOUND, 'Incorrect Password'))
     }
+
+    const token = user.createJwtToken()
+    res.cookie('access_tokein', token)
     return next(createSuccess(StatusCodes.OK, 'You are logged in !!!', user))
   } catch (error) {
     return next(
