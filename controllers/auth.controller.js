@@ -1,8 +1,11 @@
 import bcrypt from 'bcryptjs'
+import { StatusCodes } from 'http-status-codes'
 import Role from '../models/Role.js'
 import User from '../models/User.js'
+import { createError } from '../utils/error.js'
+import { createSuccess } from '../utils/success.js'
 
-export const registerUser = async (req, res) => {
+export const registerUser = async (req, res, next) => {
   try {
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(req.body.password, salt)
@@ -16,29 +19,34 @@ export const registerUser = async (req, res) => {
       roles: role,
     })
     await user.save()
-    res.status(200).json({
-      msg: `User is successfully registered`,
-      user: user,
-    })
+    return next(
+      createSuccess(StatusCodes.OK, 'User is successfully registered', user)
+    )
   } catch (error) {
-    return res.status(400).send('Bad Request')
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
   }
 }
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body
+    if (!email || !password) {
+      return next(
+        createError(StatusCodes.BAD_REQUEST, 'Email and Password are required')
+      )
+    }
     const user = await User.findOne({ email: email })
     if (!user) {
-      return res.status(404).send(`Email or Password is incorrect`)
-    } else {
-      const isMatch = await bcrypt.compare(password, user.password)
-      if (!isMatch) {
-        return res.status(404).send(`Email or Password is incorrect`)
-      }
-      return res.status(500).json({ user: user, msg: 'You are logged in!' })
+      return next(createError(StatusCodes.NOT_FOUND, 'User not found'))
     }
+    const isMatch = await bcrypt.compare(password, user.password)
+    if (!isMatch) {
+      return next(createError(StatusCodes.NOT_FOUND, 'Incorrect Password'))
+    }
+    return next(createSuccess(StatusCodes.OK, 'You are logged in !!!', user))
   } catch (error) {
-    return res.status(400).send('Bad Request')
+    return next(
+      createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Server Error')
+    )
   }
 }

@@ -1,70 +1,89 @@
+import { StatusCodes } from 'http-status-codes'
 import Role from '../models/Role.js'
+import { createError } from '../utils/error.js'
+import { createSuccess } from '../utils/success.js'
 
 export const createRole = async (req, res, next) => {
   try {
     if (req.body.role && req.body.role !== '') {
       const newRole = await Role.create(req.body)
-      return res.status(200).json(newRole)
+      return next(
+        createSuccess(StatusCodes.OK, 'Role successfully created', newRole)
+      )
     } else {
-      return res.status(400).send('Bad Request')
+      return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
     }
   } catch (error) {
-    return res.status(500).send('Internal Server Error')
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
   }
 }
 
-export const updateRole = async (req, res) => {
+export const updateRole = async (req, res, next) => {
   try {
     const roleId = req.params.id
-    const updatedRole = await Role.findOne({ _id: roleId })
-    if (updatedRole) {
-      const newRole = await Role.findByIdAndUpdate(roleId, req.body, {
+    const role = await Role.findOne({ _id: roleId })
+    if (role) {
+      const updatedRole = await Role.findByIdAndUpdate(roleId, req.body, {
         new: true,
       })
-      return res.status(200).json({ newRole })
+      return next(
+        createSuccess(StatusCodes.OK, 'Role successfully updated', updatedRole)
+      )
     }
-    res.status(404).send(`Role with id ${roleId} is not found`)
+    return next(
+      createError(StatusCodes.NOT_FOUND, `Role with id ${roleId} is not found`)
+    )
   } catch (error) {
-    return res.status(400).send('Bad Request')
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
   }
 }
 
-export const getAllRoles = async (req, res) => {
+export const getAllRoles = async (req, res, next) => {
   try {
     const roles = await Role.find()
     if (roles) {
-      res.status(200).json(roles)
+      return next(createSuccess(StatusCodes.OK, 'successful', roles))
     } else {
-      res.status(404).send('Not Found')
+      return next(createSuccess(StatusCodes.NOT_FOUND, `No Roles exists`))
     }
   } catch (error) {
-    return res.status(400).send('Bad Request')
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
   }
 }
 
-export const getRole = async (req, res) => {
+export const getRole = async (req, res, next) => {
   try {
     const roleId = req.params.id
     const role = await Role.find({ _id: roleId })
     if (role) {
-      return res.status(200).json(role)
+      return next(createSuccess(StatusCodes.OK, 'successful', role))
     }
-    res.status(404).send(`Role with ${roleId} is not found`)
+    return next(
+      createError(StatusCodes.NOT_FOUND, `Role with id ${roleId} is not found`)
+    )
   } catch (error) {
-    return res.status(400).send('Bad Request')
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
   }
 }
 
-export const deleteRole = async (req, res) => {
+export const deleteRole = async (req, res, next) => {
   try {
     const roleId = req.params.id
     const role = await Role.findOne({ _id: roleId })
     if (role) {
       const deletedRole = await Role.findByIdAndDelete(req.params.id)
-      return res.status(200).json(deletedRole)
+      return next(
+        createSuccess(
+          StatusCodes.OK,
+          `Role with id ${roleId} is deleted`,
+          deletedRole
+        )
+      )
     }
-    res.status(404).send(`Role with id ${roleId} is not found`)
+    return next(
+      createError(StatusCodes.NOT_FOUND, `Role with id ${roleId} is not found`)
+    )
   } catch (error) {
-    return res.status(400).send('Bad Request')
+    return next(createError(StatusCodes.BAD_REQUEST, 'Bad Request'))
   }
 }
