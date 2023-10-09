@@ -1,8 +1,11 @@
 import { StatusCodes } from 'http-status-codes'
+import nodemailer from 'nodemailer'
 import Role from '../models/Role.js'
 import User from '../models/User.js'
 import { createError } from '../utils/error.js'
 import { createSuccess } from '../utils/success.js'
+import Jwt from 'jsonwebtoken'
+import UserToken from '../models/UserToken.js'
 
 export const registerUser = async (req, res, next) => {
   try {
@@ -67,6 +70,78 @@ export const login = async (req, res, next) => {
     const token = user.createJwtToken()
     res.cookie('access_token', token, { httpOnly: true })
     return next(createSuccess(StatusCodes.OK, 'You are logged in !!!', user))
+  } catch (error) {
+    return next(
+      createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Server Error')
+    )
+  }
+}
+
+export const sendEmail = async (req, res, next) => {
+  try {
+    const email = req.body.email
+    const user = await User.findOne({
+      email: { $regex: '^' + email + '$', $options: 'i' },
+    })
+    if (!user) {
+      return next(
+        createError(
+          StatusCodes.NOT_FOUND,
+          'There is no user with this email id'
+        )
+      )
+    }
+
+    //Create a token if user is found with provided email
+    const payload = { email: user.email }
+    const expiryTime = 300
+    const token = Jwt.sign(payload, process.env.SECRET_TOKEN, {
+      expiresIn: expiryTime,
+    })
+    const newToken = await new UserToken({ userId: user._id, token: token })
+
+    const mailTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'uhanierwin@gmail.com',
+        pass: 'fgao jemz ygww hrwc',
+      },
+    })
+
+    let mailDetails = {
+      from: 'uhanierwin@gmail.com',
+      to: email,
+      subject: 'Reset Password',
+      html: `
+      <html>
+        <head>
+          <titte>Password Reset Request</title> 
+        </head> 
+        <body>
+          <h1>Password Reset Request</hl> 
+          <p>Dear ${user.userName},</p>
+          <p>We have received a request to reset your password for your account with BookMYBook. To complete the password reset process, please click on the button below:</p>
+          <a href=${process.env.LIVE_URL}/reset/${token}><button style="background—cotor: #4CAF50; color: white; padding: 14px 20px; border: none; 
+          cursor: pointer; border—radius: 4px; ">Reset Password</button></a>
+          <p>Please note that this link is only valid for a 5mins. If you did not request a password reset, please disregard this message.</p> 
+          <p>Thank you,</p> 
+          <p>My Team</p> 
+        </body>
+      </html>
+      `,
+    }
+
+    mailTransporter.sendMail(mailDetails, async (err, data) => {
+      if (err) {
+        console.log(err)
+        return next(
+          createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Something went wrong')
+        )
+      } else {
+        await newToken.save()
+        return next(createSuccess(StatusCodes.OK, 'Email successfully sent'))
+      }
+    })
   } catch (error) {
     return next(
       createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Server Error')
