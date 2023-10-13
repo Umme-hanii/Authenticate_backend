@@ -1,10 +1,11 @@
 import { StatusCodes } from 'http-status-codes'
 import nodemailer from 'nodemailer'
+import Jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
 import Role from '../models/Role.js'
 import User from '../models/User.js'
 import { createError } from '../utils/error.js'
 import { createSuccess } from '../utils/success.js'
-import Jwt from 'jsonwebtoken'
 import UserToken from '../models/UserToken.js'
 
 export const registerUser = async (req, res, next) => {
@@ -133,13 +134,64 @@ export const sendEmail = async (req, res, next) => {
 
     mailTransporter.sendMail(mailDetails, async (err, data) => {
       if (err) {
-        console.log(err)
         return next(
           createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Something went wrong')
         )
       } else {
         await newToken.save()
         return next(createSuccess(StatusCodes.OK, 'Email successfully sent'))
+      }
+    })
+  } catch (error) {
+    return next(
+      createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Server Error')
+    )
+  }
+}
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const token = req.body.token
+    const newPassword = req.body.password
+    Jwt.verify(token, process.env.SECRET_TOKEN, async (err, data) => {
+      if (err) {
+        next(
+          createError(
+            StatusCodes.INTERNAL_SERVER_ERROR,
+            'Reset link is expired'
+          )
+        )
+      } else {
+        const user = await User.findOne({
+          email: { $regex: '^' + data.email + '$', $options: 'i' },
+        })
+
+        const salt = await bcrypt.genSalt(10)
+        const encryptedPassword = await bcrypt.hash(newPassword, salt)
+        user.password = encryptedPassword
+
+        try {
+          const updatedUser = await User.findOneAndUpdate(
+            { _id: user._id },
+            { $set: user },
+            { new: true }
+          )
+
+          return next(
+            createSuccess(
+              StatusCodes.OK,
+              'Password Successfully updated',
+              updatedUser
+            )
+          )
+        } catch (error) {
+          return next(
+            createError(
+              StatusCodes.INTERNAL_SERVER_ERROR,
+              'Something went wrong while resetting the password'
+            )
+          )
+        }
       }
     })
   } catch (error) {
